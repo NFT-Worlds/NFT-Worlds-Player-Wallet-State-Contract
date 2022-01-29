@@ -9,10 +9,11 @@ contract NFT_Worlds_Players is Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 
-  mapping(bytes32 => address) public playerPrimaryWallet;
-  mapping(bytes32 => EnumerableSet.AddressSet) private playerSecondaryWallets;
-  mapping(bytes32 => mapping(address => string)) private playerStateData;
-  mapping(address => bool) private assignedWallets;
+  mapping(string => address) public playerPrimaryWallet;
+  mapping(address => string) public assignedWalletPlayer;
+  mapping(string => EnumerableSet.AddressSet) private playerSecondaryWallets;
+  mapping(string => mapping(address => string)) private playerStateData;
+
   string public convenienceGateway;
   address private signer;
 
@@ -20,19 +21,26 @@ contract NFT_Worlds_Players is Ownable {
     convenienceGateway = _convenienceGateway;
   }
 
-  function getPlayerSecondaryWallets(bytes32 _usernameHash) external view returns (address[] memory) {
-    uint totalPlayerSecondaryWallets = playerSecondaryWallets[_usernameHash].length();
+  /**
+   * Player Reads
+   */
+
+  function getPlayerSecondaryWallets(string calldata _username) external view returns (address[] memory) {
+    string memory lcUsername = _stringToLower(_username);
+
+    uint totalPlayerSecondaryWallets = playerSecondaryWallets[lcUsername].length();
     address[] memory wallets = new address[](totalPlayerSecondaryWallets);
 
     for (uint i = 0; i < totalPlayerSecondaryWallets; i++) {
-      wallets[i] = playerSecondaryWallets[_usernameHash].at(i);
+      wallets[i] = playerSecondaryWallets[lcUsername].at(i);
     }
 
     return wallets;
   }
 
-  function getPlayerStateData(bytes32 _usernameHash, address _setterAddress, bool includeGateway) external view returns(string memory) {
-    string memory ipfsHash = playerStateData[_usernameHash][_setterAddress];
+  function getPlayerStateData(string calldata _username, address _setterAddress, bool includeGateway) external view returns(string memory) {
+    string memory lcUsername = _stringToLower(_username);
+    string memory ipfsHash = playerStateData[lcUsername][_setterAddress];
 
     require(bytes(ipfsHash).length > 0, "No player state data set");
 
@@ -43,41 +51,59 @@ contract NFT_Worlds_Players is Ownable {
     return string(abi.encodePacked("ipfs://", ipfsHash));
   }
 
-  function setPlayerPrimaryWallet(bytes32 _usernameHash, bytes calldata _signature) external {
+  /**
+   * Player Writes
+   */
+
+  function setPlayerPrimaryWallet(string calldata _username, bytes calldata _signature) external {
+    string memory lcUsername = _stringToLower(_username);
+
     require(_verifySignerSignature(
-      keccak256(abi.encode(msg.sender, _usernameHash)),
+      keccak256(abi.encode(msg.sender, lcUsername)),
       _signature
     ), "Invalid Signature");
 
-    require(!assignedWallets[msg.sender], "Wallet assigned");
+    require(bytes(assignedWalletPlayer[msg.sender]).length == 0, "Wallet assigned");
 
-    playerPrimaryWallet[_usernameHash] = msg.sender;
-    assignedWallets[msg.sender] = true;
+    playerPrimaryWallet[lcUsername] = msg.sender;
+    assignedWalletPlayer[msg.sender] = lcUsername;
   }
 
-  function setPlayerWallet(bytes32 _usernameHash) external {
-    require(!assignedWallets[msg.sender], "Wallet assigned");
+  function setPlayerSecondaryWallet(string calldata _username) external {
+    require(bytes(assignedWalletPlayer[msg.sender]).length > 0, "Wallet assigned");
 
-    playerSecondaryWallets[_usernameHash].add(msg.sender);
-    assignedWallets[msg.sender] = true;
+    string memory lcUsername = _stringToLower(_username);
+
+    playerSecondaryWallets[lcUsername].add(msg.sender);
+    assignedWalletPlayer[msg.sender] = lcUsername;
   }
 
-  function setPlayerStateData(bytes32 _usernameHash, string calldata _ipfsHash) external {
+  function setPlayerStateData(string calldata _username, string calldata _ipfsHash) external {
     require(bytes(_ipfsHash).length == 46, "Invalid IPFS hash");
 
-    playerStateData[_usernameHash][msg.sender] = _ipfsHash;
+    string memory lcUsername = _stringToLower(_username);
+
+    playerStateData[lcUsername][msg.sender] = _ipfsHash;
   }
 
-  function removePlayerWallet(bytes32 _usernameHash) external {
-    require(assignedWallets[msg.sender], "Wallet not assigned");
+  function removePlayerWallet(string calldata _username) external {
+    require(bytes(assignedWalletPlayer[msg.sender]).length > 0, "Wallet not assigned");
 
-    playerSecondaryWallets[_usernameHash].remove(msg.sender);
-    assignedWallets[msg.sender] = false;
+    string memory lcUsername = _stringToLower(_username);
+
+    playerSecondaryWallets[lcUsername].remove(msg.sender);
+    assignedWalletPlayer[msg.sender] = "";
   }
 
-  function removePlayerStateData(bytes32 _usernameHash) external {
-    playerStateData[_usernameHash][msg.sender] = "";
+  function removePlayerStateData(string calldata _username) external {
+    string memory lcUsername = _stringToLower(_username);
+
+    playerStateData[lcUsername][msg.sender] = "";
   }
+
+  /**
+   * Owner only
+   */
 
   function setConvenienceGateway(string calldata _convenienceGateway) external onlyOwner {
     convenienceGateway = _convenienceGateway;
@@ -93,5 +119,21 @@ contract NFT_Worlds_Players is Ownable {
 
   function _verifySignerSignature(bytes32 hash, bytes calldata signature) internal view returns(bool) {
     return hash.toEthSignedMessageHash().recover(signature) == signer;
+  }
+
+  /**
+   * Utils
+   */
+
+  function _stringToLower(string memory _base) internal pure returns (string memory) {
+    bytes memory _baseBytes = bytes(_base);
+
+    for (uint i = 0; i < _baseBytes.length; i++) {
+      _baseBytes[i] = (_baseBytes[i] >= 0x41 && _baseBytes[i] <= 0x5A)
+        ? bytes1(uint8(_baseBytes[i]) + 32)
+        : _baseBytes[i];
+    }
+
+    return string(_baseBytes);
   }
 }
