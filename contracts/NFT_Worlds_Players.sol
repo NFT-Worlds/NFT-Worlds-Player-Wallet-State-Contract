@@ -15,10 +15,11 @@ contract NFT_Worlds_Players is Ownable {
   mapping(string => mapping(address => string)) private playerStateData;
 
   string public convenienceGateway;
-  address private signer;
+  address public primarySigner;
 
   constructor(string memory _convenienceGateway) {
     convenienceGateway = _convenienceGateway;
+    primarySigner = msg.sender;
   }
 
   /**
@@ -58,7 +59,7 @@ contract NFT_Worlds_Players is Ownable {
   function setPlayerPrimaryWallet(string calldata _username, bytes calldata _signature) external {
     string memory lcUsername = _stringToLower(_username);
 
-    require(_verifySignerSignature(
+    require(_verifyPrimarySignerSignature(
       keccak256(abi.encode(msg.sender, lcUsername)),
       _signature
     ), "Invalid Signature");
@@ -86,7 +87,7 @@ contract NFT_Worlds_Players is Ownable {
     playerStateData[lcUsername][msg.sender] = _ipfsHash;
   }
 
-  function removePlayerWallet(string calldata _username) external {
+  function removePlayerSecondaryWallet(string calldata _username) external {
     require(bytes(assignedWalletPlayer[msg.sender]).length > 0, "Wallet not assigned");
 
     string memory lcUsername = _stringToLower(_username);
@@ -109,16 +110,16 @@ contract NFT_Worlds_Players is Ownable {
     convenienceGateway = _convenienceGateway;
   }
 
-  function setSigner(address _signer) external onlyOwner {
-    signer = _signer;
+  function setPrimarySigner(address _primarySigner) external onlyOwner {
+    primarySigner = _primarySigner;
   }
 
   /**
    * Security
    */
 
-  function _verifySignerSignature(bytes32 hash, bytes calldata signature) internal view returns(bool) {
-    return hash.toEthSignedMessageHash().recover(signature) == signer;
+  function _verifyPrimarySignerSignature(bytes32 hash, bytes calldata signature) internal view returns(bool) {
+    return hash.toEthSignedMessageHash().recover(signature) == primarySigner;
   }
 
   /**

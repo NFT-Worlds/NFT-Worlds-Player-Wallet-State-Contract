@@ -8,7 +8,7 @@ require('hardhat-gas-reporter');
 require('hardhat-abi-exporter');
 require('hardhat-contract-sizer');
 require('@nomiclabs/hardhat-etherscan');
-console.log(process.env);
+
 module.exports = {
   solidity: {
     version: '0.8.2',
