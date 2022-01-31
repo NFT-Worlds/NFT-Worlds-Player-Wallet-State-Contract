@@ -20,6 +20,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
 
   string public convenienceGateway;
   address public primarySigner;
+  uint public gaslessFee = 1 ether; // $WRLD
 
   constructor(address _forwarder, address _wrld, string memory _convenienceGateway) ERC2771Context(_forwarder) {
     WRLD_ERC20 = IERC20(_wrld);
@@ -67,7 +68,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
    * Player Writes
    */
 
-  function setPlayerPrimaryWallet(string calldata _username, bytes calldata _signature) external {
+  function setPlayerPrimaryWallet(string calldata _username, bytes calldata _signature) public {
     string memory lcUsername = _stringToLower(_username);
 
     require(_verifyPrimarySignerSignature(
@@ -81,7 +82,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     assignedWalletPlayer[_msgSender()] = lcUsername;
   }
 
-  function setPlayerSecondaryWallet(string calldata _username) external {
+  function setPlayerSecondaryWallet(string calldata _username) public {
     require(bytes(assignedWalletPlayer[_msgSender()]).length == 0, "Wallet assigned");
 
     string memory lcUsername = _stringToLower(_username);
@@ -90,7 +91,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     assignedWalletPlayer[_msgSender()] = lcUsername;
   }
 
-  function setPlayerStateData(string calldata _username, string calldata _ipfsHash) external {
+  function setPlayerStateData(string calldata _username, string calldata _ipfsHash) public {
     require(bytes(_ipfsHash).length == 46, "Invalid IPFS hash");
 
     string memory lcUsername = _stringToLower(_username);
@@ -98,7 +99,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     playerStateData[lcUsername][_msgSender()] = _ipfsHash;
   }
 
-  function removePlayerSecondaryWallet(string calldata _username) external {
+  function removePlayerSecondaryWallet(string calldata _username) public {
     require(bytes(assignedWalletPlayer[_msgSender()]).length > 0, "Wallet not assigned");
 
     string memory lcUsername = _stringToLower(_username);
@@ -107,10 +108,39 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     assignedWalletPlayer[_msgSender()] = "";
   }
 
-  function removePlayerStateData(string calldata _username) external {
+  function removePlayerStateData(string calldata _username) public {
     string memory lcUsername = _stringToLower(_username);
 
     playerStateData[lcUsername][_msgSender()] = "";
+  }
+
+  /**
+   * Gasless Player Writes
+   */
+
+  function setPlayerPrimaryWalletGasless(string calldata _username, bytes calldata _signature, address _feeRecipient) external {
+    setPlayerPrimaryWallet(_username, _signature);
+    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+  }
+
+  function setPlayerSecondaryWalletGasless(string calldata _username, address _feeRecipient) external {
+    setPlayerSecondaryWallet(_username);
+    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+  }
+
+  function setPlayerStateDataGasless(string calldata _username, string calldata _ipfsHash, address _feeRecipient) external {
+    setPlayerStateData(_username, _ipfsHash);
+    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+  }
+
+  function removePlayerSecondaryWalletGasless(string calldata _username, address _feeRecipient) external {
+    removePlayerSecondaryWallet(_username);
+    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+  }
+
+  function removePlayerStateDataGasless(string calldata _username, address _feeRecipient) external {
+    removePlayerStateData(_username);
+    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
   }
 
   /**
@@ -123,6 +153,10 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
 
   function setPrimarySigner(address _primarySigner) external onlyOwner {
     primarySigner = _primarySigner;
+  }
+
+  function setGaslessFee(uint _fee) external onlyOwner {
+    gaslessFee = _fee;
   }
 
   /**

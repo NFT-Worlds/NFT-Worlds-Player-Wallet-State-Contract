@@ -5,6 +5,7 @@ const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
 
 describe('NFT Worlds Server Router', () => {
   let contract;
+  let tokenContract;
   let owner;
   let otherAddresses;
 
@@ -17,10 +18,9 @@ describe('NFT Worlds Server Router', () => {
     owner = _owner;
     otherAddresses = _otherAddresses;
 
-    const token = await WrldTokenFactory.deploy();
     const forwarder = await WRLDForwarderFactory.deploy();
-
-    contract = await NFTWorldsPlayersFactory.deploy(forwarder.address, token.address, IPFS_GATEWAY);
+    tokenContract = await WrldTokenFactory.deploy();
+    contract = await NFTWorldsPlayersFactory.deploy(forwarder.address, tokenContract.address, IPFS_GATEWAY);
   });
 
   it('Should deploy', async () => {
@@ -156,7 +156,9 @@ describe('NFT Worlds Server Router', () => {
     expect(await contract.primarySigner()).to.equal(newSigner.address);
   });
 
+  it('Should set player primary wallet with gasles fee', async () => {
 
+  });
 
   /*
    * Helpers
