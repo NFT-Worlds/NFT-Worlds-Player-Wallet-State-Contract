@@ -10,11 +10,17 @@ describe('NFT Worlds Server Router', () => {
 
   beforeEach(async () => {
     const [ _owner, ..._otherAddresses ] = await ethers.getSigners();
+    const WrldTokenFactory = await ethers.getContractFactory('WRLD_Token_Mock');
+    const WRLDForwarderFactory = await ethers.getContractFactory('WRLD_Forwarder');
     const NFTWorldsPlayersFactory = await ethers.getContractFactory('NFT_Worlds_Players');
 
     owner = _owner;
     otherAddresses = _otherAddresses;
-    contract = await NFTWorldsPlayersFactory.deploy(IPFS_GATEWAY);
+
+    const token = await WrldTokenFactory.deploy();
+    const forwarder = await WRLDForwarderFactory.deploy();
+
+    contract = await NFTWorldsPlayersFactory.deploy(forwarder.address, token.address, IPFS_GATEWAY);
   });
 
   it('Should deploy', async () => {

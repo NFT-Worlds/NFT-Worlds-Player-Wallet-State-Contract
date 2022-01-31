@@ -4,10 +4,14 @@ pragma solidity ^0.8.2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 
-contract NFT_Worlds_Players is Ownable {
+contract NFT_Worlds_Players is Ownable, ERC2771Context {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
+
+  IERC20 immutable WRLD_ERC20;
 
   mapping(address => string) public assignedWalletPlayer;
   mapping(string => address) private playerPrimaryWallet;
@@ -17,9 +21,10 @@ contract NFT_Worlds_Players is Ownable {
   string public convenienceGateway;
   address public primarySigner;
 
-  constructor(string memory _convenienceGateway) {
+  constructor(address _forwarder, address _wrld, string memory _convenienceGateway) ERC2771Context(_forwarder) {
+    WRLD_ERC20 = IERC20(_wrld);
     convenienceGateway = _convenienceGateway;
-    primarySigner = msg.sender;
+    primarySigner = _msgSender();
   }
 
   /**
@@ -66,23 +71,23 @@ contract NFT_Worlds_Players is Ownable {
     string memory lcUsername = _stringToLower(_username);
 
     require(_verifyPrimarySignerSignature(
-      keccak256(abi.encode(msg.sender, lcUsername)),
+      keccak256(abi.encode(_msgSender(), lcUsername)),
       _signature
     ), "Invalid Signature");
 
-    require(bytes(assignedWalletPlayer[msg.sender]).length == 0, "Wallet assigned");
+    require(bytes(assignedWalletPlayer[_msgSender()]).length == 0, "Wallet assigned");
 
-    playerPrimaryWallet[lcUsername] = msg.sender;
-    assignedWalletPlayer[msg.sender] = lcUsername;
+    playerPrimaryWallet[lcUsername] = _msgSender();
+    assignedWalletPlayer[_msgSender()] = lcUsername;
   }
 
   function setPlayerSecondaryWallet(string calldata _username) external {
-    require(bytes(assignedWalletPlayer[msg.sender]).length == 0, "Wallet assigned");
+    require(bytes(assignedWalletPlayer[_msgSender()]).length == 0, "Wallet assigned");
 
     string memory lcUsername = _stringToLower(_username);
 
-    playerSecondaryWallets[lcUsername].add(msg.sender);
-    assignedWalletPlayer[msg.sender] = lcUsername;
+    playerSecondaryWallets[lcUsername].add(_msgSender());
+    assignedWalletPlayer[_msgSender()] = lcUsername;
   }
 
   function setPlayerStateData(string calldata _username, string calldata _ipfsHash) external {
@@ -90,22 +95,22 @@ contract NFT_Worlds_Players is Ownable {
 
     string memory lcUsername = _stringToLower(_username);
 
-    playerStateData[lcUsername][msg.sender] = _ipfsHash;
+    playerStateData[lcUsername][_msgSender()] = _ipfsHash;
   }
 
   function removePlayerSecondaryWallet(string calldata _username) external {
-    require(bytes(assignedWalletPlayer[msg.sender]).length > 0, "Wallet not assigned");
+    require(bytes(assignedWalletPlayer[_msgSender()]).length > 0, "Wallet not assigned");
 
     string memory lcUsername = _stringToLower(_username);
 
-    playerSecondaryWallets[lcUsername].remove(msg.sender);
-    assignedWalletPlayer[msg.sender] = "";
+    playerSecondaryWallets[lcUsername].remove(_msgSender());
+    assignedWalletPlayer[_msgSender()] = "";
   }
 
   function removePlayerStateData(string calldata _username) external {
     string memory lcUsername = _stringToLower(_username);
 
-    playerStateData[lcUsername][msg.sender] = "";
+    playerStateData[lcUsername][_msgSender()] = "";
   }
 
   /**
@@ -142,5 +147,17 @@ contract NFT_Worlds_Players is Ownable {
     }
 
     return string(_baseBytes);
+  }
+
+  /**
+   * Overrides
+   */
+
+  function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
+    return super._msgSender();
+  }
+
+  function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
+    return super._msgData();
   }
 }
