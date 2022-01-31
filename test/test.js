@@ -32,48 +32,81 @@ describe('NFT Worlds Server Router', () => {
     await contract.connect(player).setPlayerPrimaryWallet(username, signature);
 
     // Contract lowercases all usernames to maintain case insensitive usernames lookups.
-    expect(await contract.playerPrimaryWallet(lcUsername)).to.equal(player.address);
+    expect(await contract.getPlayerPrimaryWallet(lcUsername)).to.equal(player.address);
     expect(await contract.assignedWalletPlayer(player.address)).to.equal(lcUsername);
   });
 
   it('Should set player secondary wallet', async () => {
     await contract.deployed();
+
+    const player = otherAddresses[0];
+    const username = 'iAmArkDev';
+    const lcUsername = username.toLowerCase();
+
+    await contract.connect(player).setPlayerSecondaryWallet(username);
+
+    expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(player.address);
+    expect(await contract.assignedWalletPlayer(player.address)).to.equal(lcUsername);
   });
 
   it('Should set player state data ipfs hash specific to the message sender address', async () => {
     await contract.deployed();
+
+    const username = 'thiisa.Test';
+    const lcUsername = username.toLowerCase();
+    const ipfsHash = generateRandomIPFSHash();
+
+    await contract.connect(owner).setPlayerStateData(username, ipfsHash);
+
+    expect(await contract.getPlayerStateData(lcUsername, owner.address, false)).to.equal(`ipfs://${ipfsHash}`);
   });
 
   it('Should remove player secondary wallet', async () => {
     await contract.deployed();
+
+    const player = otherAddresses[0];
+    const username = 'iAmArkDev2';
+    const lcUsername = username.toLowerCase();
+
+    await contract.connect(player).setPlayerSecondaryWallet(lcUsername);
+    expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(player.address);
+
+    await contract.connect(player).removePlayerSecondaryWallet(username);
+    expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(undefined);
   });
 
   it('Should remove player state data', async () => {
     await contract.deployed();
+
+    const username = 'thiisa.Test';
+    const lcUsername = username.toLowerCase();
+    const ipfsHash = generateRandomIPFSHash();
+
+    await contract.connect(owner).setPlayerStateData(username, ipfsHash);
+    expect(await contract.getPlayerStateData(lcUsername, owner.address, false)).to.equal(`ipfs://${ipfsHash}`);
+
+    await contract.connect(owner).removePlayerStateData(username);
+    await expect(contract.getPlayerStateData(lcUsername, owner.address, false)).to.be.reverted;
   });
 
   it('Should set convenience gateway', async () => {
     await contract.deployed();
+
+    const newGateway = 'https://test.nftworlds.com/ipfs/';
+
+    await contract.connect(owner).setConvenienceGateway(newGateway);
+
+    expect(await contract.convenienceGateway()).to.equal(newGateway);
   });
 
-  it('Should set signer', async () => {
+  it('Should set primary signer', async () => {
     await contract.deployed();
-  });
 
-  it('Should be case insensitive reads of player primary wallet', async () => {
-    await contract.deployed();
-  });
+    const newSigner = otherAddresses[2];
 
-  it('Should be case insensitive returns of assigner player to wallet', async () => {
-    await contract.deployed();
-  });
+    await contract.connect(owner).setPrimarySigner(newSigner.address);
 
-  it('Should be case insensitive reads of player secondary wallets', async () => {
-    await contract.deployed();
-  });
-
-  it('Should be case insensitive reads of player state data', async () => {
-    await contract.deployed();
+    expect(await contract.primarySigner()).to.equal(newSigner.address);
   });
 
   /*

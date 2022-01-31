@@ -9,8 +9,8 @@ contract NFT_Worlds_Players is Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 
-  mapping(string => address) public playerPrimaryWallet;
   mapping(address => string) public assignedWalletPlayer;
+  mapping(string => address) private playerPrimaryWallet;
   mapping(string => EnumerableSet.AddressSet) private playerSecondaryWallets;
   mapping(string => mapping(address => string)) private playerStateData;
 
@@ -25,6 +25,12 @@ contract NFT_Worlds_Players is Ownable {
   /**
    * Player Reads
    */
+
+  function getPlayerPrimaryWallet(string calldata _username) external view returns (address) {
+    string memory lcUsername = _stringToLower(_username);
+
+    return playerPrimaryWallet[lcUsername];
+  }
 
   function getPlayerSecondaryWallets(string calldata _username) external view returns (address[] memory) {
     string memory lcUsername = _stringToLower(_username);
@@ -71,7 +77,7 @@ contract NFT_Worlds_Players is Ownable {
   }
 
   function setPlayerSecondaryWallet(string calldata _username) external {
-    require(bytes(assignedWalletPlayer[msg.sender]).length > 0, "Wallet assigned");
+    require(bytes(assignedWalletPlayer[msg.sender]).length == 0, "Wallet assigned");
 
     string memory lcUsername = _stringToLower(_username);
 
