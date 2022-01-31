@@ -49,6 +49,47 @@ describe('NFT Worlds Server Router', () => {
     expect(await contract.assignedWalletPlayer(player.address)).to.equal(lcUsername);
   });
 
+  it('Should set multiple player secondary wallets and return correct wallets after a removal', async () => {
+    await contract.deployed();
+
+    const wallet1 = otherAddresses[0];
+    const wallet2 = otherAddresses[1];
+    const wallet3 = otherAddresses[2];
+    const username = 'iAmArkDev';
+
+    await contract.connect(wallet1).setPlayerSecondaryWallet(username);
+    await contract.connect(wallet2).setPlayerSecondaryWallet(username);
+    await contract.connect(wallet3).setPlayerSecondaryWallet(username);
+
+    const connectedSecondaryWallets = await contract.getPlayerSecondaryWallets(username);
+
+    expect(connectedSecondaryWallets[0]).to.equal(wallet1.address);
+    expect(connectedSecondaryWallets[1]).to.equal(wallet2.address);
+    expect(connectedSecondaryWallets[2]).to.equal(wallet3.address);
+
+    await contract.connect(wallet2).removePlayerSecondaryWallet(username);
+
+    const updatedSecondaryWallets = await contract.getPlayerSecondaryWallets(username);
+
+    if (updatedSecondaryWallets.includes(wallet2.address)) {
+      throw new Error('Should now have wallet2 address');
+    }
+  });
+
+  it('Should set player secondary wallet and remove it and allow it to be set on a different username', async () => {
+    await contract.deployed();
+
+    const wallet = otherAddresses[0];
+    const username = 'iAmArkDev';
+    const otherUsername = 'tester';
+    const signature = generatePlayerWalletSignature(wallet.address, otherUsername.toLowerCase());
+
+    await contract.connect(wallet).setPlayerSecondaryWallet(username);
+    await expect(contract.connect(wallet).setPlayerSecondaryWallet(otherUsername)).to.be.reverted;
+    await contract.connect(wallet).removePlayerSecondaryWallet(username);
+    await contract.connect(wallet).setPlayerPrimaryWallet(otherUsername, signature);
+  });
+
   it('Should set player state data ipfs hash specific to the message sender address', async () => {
     await contract.deployed();
 
@@ -108,6 +149,8 @@ describe('NFT Worlds Server Router', () => {
 
     expect(await contract.primarySigner()).to.equal(newSigner.address);
   });
+
+
 
   /*
    * Helpers
