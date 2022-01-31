@@ -1,5 +1,6 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
+const { BigNumber } = ethers;
 
 const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
 
@@ -156,8 +157,22 @@ describe('NFT Worlds Server Router', () => {
     expect(await contract.primarySigner()).to.equal(newSigner.address);
   });
 
-  it('Should set player primary wallet with gasles fee', async () => {
+  it('Should set gasless fee', async () => {
+    await contract.deployed();
 
+    const fee = getTokenDecimalAmount(2);
+
+    await contract.connect(owner).setGaslessFee(fee);
+
+    expect(await contract.gaslessFee() * 1).to.equal(fee * 1);
+  });
+
+  it('Should set player primary wallet with gasless fee', async () => {
+    await contract.deployed();
+    await tokenContract.deployed();
+
+    const signer = otherAddresses[0];
+    const sender = otherAddresses[1];
   });
 
   /*
@@ -187,5 +202,9 @@ describe('NFT Worlds Server Router', () => {
     }
 
     return str;
+  }
+
+  function getTokenDecimalAmount(amount) {
+    return BigNumber.from(BigInt(amount * 1e18));
   }
 });
