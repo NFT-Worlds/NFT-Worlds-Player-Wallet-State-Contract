@@ -7,23 +7,24 @@ const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
 describe('NFT Worlds Server Router', () => {
   let contract;
   let tokenContract;
+  let forwarderContract;
   let owner;
   let otherAddresses;
 
   beforeEach(async () => {
     const [ _owner, ..._otherAddresses ] = await ethers.getSigners();
     const WrldTokenFactory = await ethers.getContractFactory('WRLD_Token_Mock');
-    const WRLDForwarderFactory = await ethers.getContractFactory('WRLD_Forwarder');
+    const WRLDForwarderFactory = await ethers.getContractFactory('WRLD_Forwarder_Polygon');
     const NFTWorldsPlayersFactory = await ethers.getContractFactory('NFT_Worlds_Players');
 
     owner = _owner;
     otherAddresses = _otherAddresses;
 
-    const forwarder = await WRLDForwarderFactory.deploy();
-    tokenContract = await WrldTokenFactory.deploy();
-    contract = await NFTWorldsPlayersFactory.deploy(forwarder.address, tokenContract.address, IPFS_GATEWAY);
+    forwarderContract = await WRLDForwarderFactory.deploy();
+    tokenContract = await WrldTokenFactory.deploy(forwarderContract.address);
+    contract = await NFTWorldsPlayersFactory.deploy(forwarderContract.address, IPFS_GATEWAY);
   });
-
+/*
   it('Should deploy', async () => {
     await contract.deployed();
   });
@@ -156,23 +157,102 @@ describe('NFT Worlds Server Router', () => {
 
     expect(await contract.primarySigner()).to.equal(newSigner.address);
   });
-
-  it('Should set gasless fee', async () => {
-    await contract.deployed();
-
-    const fee = getTokenDecimalAmount(2);
-
-    await contract.connect(owner).setGaslessFee(fee);
-
-    expect(await contract.gaslessFee() * 1).to.equal(fee * 1);
-  });
-
+*/
   it('Should set player primary wallet with gasless fee', async () => {
+
+    // gasless approve
+    // players contract approved for fee(s)
+    // sends
+
     await contract.deployed();
     await tokenContract.deployed();
 
+    const chainId = 31337; // hardhat
     const signer = otherAddresses[0];
     const sender = otherAddresses[1];
+    const username = 'iamarkdevadwada';
+    const playerSignature = await generatePlayerWalletSignature(signer.address, username);
+
+console.log('signer', signer.address);
+console.log('sender', sender.address);
+
+    // mint some tokens for the signer to pay fees.
+    await tokenContract.connect(signer).mint(signer.address, getTokenDecimalAmount(20));
+
+    // Forwarder Sig Vars
+    const domain = {
+      chainId,
+      name: 'WRLD_Forwarder_Polygon',
+      verifyingContract: forwarderContract.address,
+      version: '1.0.0',
+    };
+
+    const types = {
+      ForwardRequest: [
+        { name: 'from', type: 'address' },
+        { name: 'to', type: 'address' },
+        { name: 'value', type: 'uint256' },
+        { name: 'gas', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'data', type: 'bytes' },
+      ],
+    };
+
+    const forwarderNonce = await forwarderContract.getNonce(signer.address);
+
+    // create fee request object and sig
+    const fee = getTokenDecimalAmount(2);
+    const feeGasEstimate = await tokenContract.connect(signer).estimateGas.transfer(sender.address, fee);
+    const feeCallData = tokenContract.interface.encodeFunctionData('transfer', [
+      sender.address,
+      fee,
+    ]);
+
+    const feeForwardRequest = {
+      from: signer.address,
+      to: tokenContract.address,
+      value: getTokenDecimalAmount(0),
+      gas: feeGasEstimate,
+      nonce: BigNumber.from(forwarderNonce * 1 + 1),
+      data: feeCallData,
+    };
+
+    const feeSignature = await signer._signTypedData(
+      domain,
+      types,
+      feeForwardRequest,
+    );
+
+    // create set player primary wallet request object and sig
+    const setCallData = contract.interface.encodeFunctionData('setPlayerPrimaryWalletGasless', [
+      username,
+      playerSignature,
+      feeForwardRequest,
+      feeSignature,
+    ]);
+
+    const setForwardRequest = {
+      from: signer.address,
+      to: contract.address,
+      value: getTokenDecimalAmount(0),
+      gas: BigNumber.from(200000), // if we get a gas estimate, the nonces will mismatch..
+      nonce: forwarderNonce,
+      data: setCallData,
+    };
+
+    // Sign message
+    const setSignature = await signer._signTypedData(
+      domain,
+      types,
+      setForwardRequest,
+    );
+
+    // Execute forwarded transaction
+    await forwarderContract.connect(sender).execute(setForwardRequest, setSignature);
+
+    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
+
+
   });
 
   /*

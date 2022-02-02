@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 /**
  * @dev Simple minimal forwarder to be used together with an ERC2771 compatible contract. See {ERC2771Context}.
  */
-contract WRLD_Forwarder is EIP712 {
+contract WRLD_Forwarder_Polygon is EIP712 {
     using ECDSA for bytes32;
 
     struct ForwardRequest {

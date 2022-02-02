@@ -7,11 +7,24 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 
+struct ForwardRequest {
+  address from;
+  address to;
+  uint256 value;
+  uint256 gas;
+  uint256 nonce;
+  bytes data;
+}
+
+interface IForwarder {
+  function execute(ForwardRequest calldata req, bytes calldata signature) external payable returns (bool, bytes memory);
+}
+
 contract NFT_Worlds_Players is Ownable, ERC2771Context {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 
-  IERC20 immutable WRLD_ERC20;
+  IForwarder immutable feeForwarder;
 
   mapping(address => string) public assignedWalletPlayer;
   mapping(string => address) private playerPrimaryWallet;
@@ -20,10 +33,9 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
 
   string public convenienceGateway;
   address public primarySigner;
-  uint public gaslessFee = 1 ether; // $WRLD
 
-  constructor(address _forwarder, address _wrld, string memory _convenienceGateway) ERC2771Context(_forwarder) {
-    WRLD_ERC20 = IERC20(_wrld);
+  constructor(address _forwarder, string memory _convenienceGateway) ERC2771Context(_forwarder) {
+    feeForwarder = IForwarder(_forwarder);
     convenienceGateway = _convenienceGateway;
     primarySigner = _msgSender();
   }
@@ -118,29 +130,51 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
    * Gasless Player Writes
    */
 
-  function setPlayerPrimaryWalletGasless(string calldata _username, bytes calldata _signature, address _feeRecipient) external {
+  function setPlayerPrimaryWalletGasless(
+    string calldata _username,
+    bytes calldata _signature,
+    ForwardRequest calldata _feeForwardRequest,
+    bytes calldata _feeSignature
+  ) external {
     setPlayerPrimaryWallet(_username, _signature);
-    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+    feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
-  function setPlayerSecondaryWalletGasless(string calldata _username, address _feeRecipient) external {
+  function setPlayerSecondaryWalletGasless(
+    string calldata _username,
+    ForwardRequest calldata _feeForwardRequest,
+    bytes calldata _feeSignature
+  ) external {
     setPlayerSecondaryWallet(_username);
-    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+    feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
-  function setPlayerStateDataGasless(string calldata _username, string calldata _ipfsHash, address _feeRecipient) external {
+  function setPlayerStateDataGasless(
+    string calldata _username,
+    string calldata _ipfsHash,
+    ForwardRequest calldata _feeForwardRequest,
+    bytes calldata _feeSignature
+  ) external {
     setPlayerStateData(_username, _ipfsHash);
-    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+    feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
-  function removePlayerSecondaryWalletGasless(string calldata _username, address _feeRecipient) external {
+  function removePlayerSecondaryWalletGasless(
+    string calldata _username,
+    ForwardRequest calldata _feeForwardRequest,
+    bytes calldata _feeSignature
+  ) external {
     removePlayerSecondaryWallet(_username);
-    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+    feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
-  function removePlayerStateDataGasless(string calldata _username, address _feeRecipient) external {
+  function removePlayerStateDataGasless(
+    string calldata _username,
+    ForwardRequest calldata _feeForwardRequest,
+    bytes calldata _feeSignature
+  ) external {
     removePlayerStateData(_username);
-    WRLD_ERC20.transfer(_feeRecipient, gaslessFee);
+    feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
   /**
@@ -153,10 +187,6 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
 
   function setPrimarySigner(address _primarySigner) external onlyOwner {
     primarySigner = _primarySigner;
-  }
-
-  function setGaslessFee(uint _fee) external onlyOwner {
-    gaslessFee = _fee;
   }
 
   /**
