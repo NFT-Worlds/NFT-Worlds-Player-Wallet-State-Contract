@@ -162,11 +162,134 @@ describe('NFT Worlds Server Router', () => {
     await contract.deployed();
     await tokenContract.deployed();
 
-    const chainId = 31337; // hardhat
     const signer = otherAddresses[0];
     const sender = otherAddresses[1];
     const username = 'iamarkdevadwada';
+    const fee = getTokenDecimalAmount(2);
     const playerSignature = await generatePlayerWalletSignature(signer.address, username);
+
+    await sendForwardedRequestWithFee({
+      signer,
+      sender,
+      functionName: 'setPlayerPrimaryWalletGasless',
+      fee,
+      setArgs: [ username, playerSignature ],
+    });
+
+    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
+    expect(await contract.getPlayerPrimaryWallet(username)).to.equal(signer.address);
+    expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
+  });
+
+  it('Should set player secondary wallet with gasless fee', async () => {
+    await contract.deployed();
+    await tokenContract.deployed();
+
+    const signer = otherAddresses[0];
+    const sender = otherAddresses[1];
+    const fee = getTokenDecimalAmount(2);
+    const username = 'iamarkdev1231';
+
+    await sendForwardedRequestWithFee({
+      signer,
+      sender,
+      functionName: 'setPlayerSecondaryWalletGasless',
+      fee,
+      setArgs: [ username ],
+    });
+
+    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
+    expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(signer.address);
+    expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
+  });
+
+  it('Should set multiple player secondary wallets and return correct wallets after a removal with gasless fees', async () => {
+    await contract.deployed();
+
+    const wallets = [ otherAddresses[0], otherAddresses[1], otherAddresses[2] ];
+    const sender = otherAddresses[3];
+    const fee = getTokenDecimalAmount(2);
+    const username = 'iAmArkDev';
+
+    for (let i = 0; i < wallets.length; i++) {
+      await sendForwardedRequestWithFee({
+        signer: wallets[i],
+        sender,
+        functionName: 'setPlayerSecondaryWalletGasless',
+        fee,
+        setArgs: [ username ],
+      });
+    }
+
+    const connectedSecondaryWallets = await contract.getPlayerSecondaryWallets(username);
+
+    expect(connectedSecondaryWallets[0]).to.equal(wallets[0].address);
+    expect(connectedSecondaryWallets[1]).to.equal(wallets[1].address);
+    expect(connectedSecondaryWallets[2]).to.equal(wallets[2].address);
+
+    await contract.connect(wallets[1]).removePlayerSecondaryWallet(username);
+
+    const updatedSecondaryWallets = await contract.getPlayerSecondaryWallets(username);
+
+    if (updatedSecondaryWallets.includes(wallets[1].address)) {
+      throw new Error('Should now have wallet2 address');
+    }
+  });
+
+  it('Should set player state data ipfs hash specific to the message sender address', async () => {
+    await contract.deployed();
+
+    const signer = otherAddresses[0];
+    const sender = otherAddresses[1];
+    const fee = getTokenDecimalAmount(2);
+    const username = 'thiisa.tryest';
+    const ipfsHash = generateRandomIPFSHash();
+
+    await sendForwardedRequestWithFee({
+      signer,
+      sender,
+      functionName: 'setPlayerStateDataGasless',
+      fee,
+      setArgs: [ username, ipfsHash ],
+    });
+
+    expect(await contract.getPlayerStateData(username, signer.address, false)).to.equal(`ipfs://${ipfsHash}`);
+  });
+
+  it('Should remove player state data', async () => {
+    await contract.deployed();
+
+    const signer = otherAddresses[0];
+    const sender = otherAddresses[1];
+    const fee = getTokenDecimalAmount(2);
+    const username = 'thiisa.Test';
+    const ipfsHash = generateRandomIPFSHash();
+
+    await sendForwardedRequestWithFee({
+      signer,
+      sender,
+      functionName: 'setPlayerStateDataGasless',
+      fee,
+      setArgs: [ username, ipfsHash ],
+    });
+    expect(await contract.getPlayerStateData(username, signer.address, false)).to.equal(`ipfs://${ipfsHash}`);
+
+    await sendForwardedRequestWithFee({
+      signer,
+      sender,
+      functionName: 'removePlayerStateDataGasless',
+      fee,
+      setArgs: [ username ],
+    });
+    await expect(contract.getPlayerStateData(username, signer.address, false)).to.be.reverted;
+  });
+
+  /*
+   * Helpers
+   */
+
+  async function sendForwardedRequestWithFee({ signer, sender, functionName, fee, setArgs }) {
+    const chainId = 31337; // hardhat
 
     // mint some tokens for the signer to pay fees.
     await tokenContract.connect(signer).mint(signer.address, getTokenDecimalAmount(20));
@@ -193,7 +316,6 @@ describe('NFT Worlds Server Router', () => {
     const forwarderNonce = await forwarderContract.getNonce(signer.address);
 
     // create fee request object and sig
-    const fee = getTokenDecimalAmount(2);
     const feeGasEstimate = await tokenContract.connect(signer).estimateGas.transfer(sender.address, fee);
     const feeCallData = tokenContract.interface.encodeFunctionData('transfer', [
       sender.address,
@@ -216,9 +338,8 @@ describe('NFT Worlds Server Router', () => {
     );
 
     // create set player primary wallet request object and sig
-    const setCallData = contract.interface.encodeFunctionData('setPlayerPrimaryWalletGasless', [
-      username,
-      playerSignature,
+    const setCallData = contract.interface.encodeFunctionData(functionName, [
+      ...setArgs,
       feeForwardRequest,
       feeSignature,
     ]);
@@ -227,7 +348,7 @@ describe('NFT Worlds Server Router', () => {
       from: signer.address,
       to: contract.address,
       value: getTokenDecimalAmount(0),
-      gas: BigNumber.from(200000), // if we get a gas estimate, the nonces will mismatch..
+      gas: BigNumber.from(250000), // if we get a gas estimate, the nonces will mismatch..
       nonce: forwarderNonce,
       data: setCallData,
     };
@@ -241,15 +362,7 @@ describe('NFT Worlds Server Router', () => {
 
     // Execute forwarded transaction
     await forwarderContract.connect(sender).execute(setForwardRequest, setSignature);
-
-    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
-    expect(await contract.getPlayerPrimaryWallet(username)).to.equal(signer.address);
-    expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
-  });
-
-  /*
-   * Helpers
-   */
+  }
 
   async function generatePlayerWalletSignature(address, lcUsername) {
     const abiCoder = ethers.utils.defaultAbiCoder;
