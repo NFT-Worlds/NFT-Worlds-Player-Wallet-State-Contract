@@ -24,7 +24,7 @@ describe('NFT Worlds Server Router', () => {
     tokenContract = await WrldTokenFactory.deploy(forwarderContract.address);
     contract = await NFTWorldsPlayersFactory.deploy(forwarderContract.address, IPFS_GATEWAY);
   });
-/*
+
   it('Should deploy', async () => {
     await contract.deployed();
   });
@@ -157,13 +157,8 @@ describe('NFT Worlds Server Router', () => {
 
     expect(await contract.primarySigner()).to.equal(newSigner.address);
   });
-*/
+
   it('Should set player primary wallet with gasless fee', async () => {
-
-    // gasless approve
-    // players contract approved for fee(s)
-    // sends
-
     await contract.deployed();
     await tokenContract.deployed();
 
@@ -172,9 +167,6 @@ describe('NFT Worlds Server Router', () => {
     const sender = otherAddresses[1];
     const username = 'iamarkdevadwada';
     const playerSignature = await generatePlayerWalletSignature(signer.address, username);
-
-console.log('signer', signer.address);
-console.log('sender', sender.address);
 
     // mint some tokens for the signer to pay fees.
     await tokenContract.connect(signer).mint(signer.address, getTokenDecimalAmount(20));
@@ -251,8 +243,8 @@ console.log('sender', sender.address);
     await forwarderContract.connect(sender).execute(setForwardRequest, setSignature);
 
     expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
-
-
+    expect(await contract.getPlayerPrimaryWallet(username)).to.equal(signer.address);
+    expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
   });
 
   /*
