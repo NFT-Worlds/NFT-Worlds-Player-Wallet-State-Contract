@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 struct ForwardRequest {
   address from;
@@ -20,7 +21,7 @@ interface IForwarder {
   function execute(ForwardRequest calldata req, bytes calldata signature) external payable returns (bool, bytes memory);
 }
 
-contract NFT_Worlds_Players is Ownable, ERC2771Context {
+contract NFT_Worlds_Players is Ownable, ERC2771Context, ReentrancyGuard {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 
@@ -135,7 +136,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     bytes calldata _signature,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
-  ) external {
+  ) external nonReentrant {
     setPlayerPrimaryWallet(_username, _signature);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
@@ -144,7 +145,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     string calldata _username,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
-  ) external {
+  ) external nonReentrant {
     setPlayerSecondaryWallet(_username);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
@@ -154,7 +155,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     string calldata _ipfsHash,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
-  ) external {
+  ) external nonReentrant {
     setPlayerStateData(_username, _ipfsHash);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
@@ -163,7 +164,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     string calldata _username,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
-  ) external {
+  ) external nonReentrant {
     removePlayerSecondaryWallet(_username);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
@@ -172,7 +173,7 @@ contract NFT_Worlds_Players is Ownable, ERC2771Context {
     string calldata _username,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
-  ) external {
+  ) external nonReentrant {
     removePlayerStateData(_username);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
