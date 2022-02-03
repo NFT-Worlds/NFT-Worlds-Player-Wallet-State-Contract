@@ -21,7 +21,7 @@ interface IForwarder {
   function execute(ForwardRequest calldata req, bytes calldata signature) external payable returns (bool, bytes memory);
 }
 
-contract NFT_Worlds_Players is Ownable, ERC2771Context, ReentrancyGuard {
+contract NFT_Worlds_Players_V1 is Ownable, ERC2771Context, ReentrancyGuard {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 

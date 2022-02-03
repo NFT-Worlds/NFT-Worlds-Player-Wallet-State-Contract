@@ -15,14 +15,14 @@ describe('NFT Worlds Server Router', () => {
     const [ _owner, ..._otherAddresses ] = await ethers.getSigners();
     const WrldTokenFactory = await ethers.getContractFactory('WRLD_Token_Mock');
     const WRLDForwarderFactory = await ethers.getContractFactory('WRLD_Forwarder_Polygon');
-    const NFTWorldsPlayersFactory = await ethers.getContractFactory('NFT_Worlds_Players');
+    const NFTWorldsPlayersV1Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1');
 
     owner = _owner;
     otherAddresses = _otherAddresses;
 
     forwarderContract = await WRLDForwarderFactory.deploy();
     tokenContract = await WrldTokenFactory.deploy(forwarderContract.address);
-    contract = await NFTWorldsPlayersFactory.deploy(forwarderContract.address, IPFS_GATEWAY);
+    contract = await NFTWorldsPlayersV1Factory.deploy(forwarderContract.address, IPFS_GATEWAY);
   });
 
   it('Should deploy', async () => {
@@ -96,6 +96,8 @@ describe('NFT Worlds Server Router', () => {
     await expect(contract.connect(wallet).setPlayerSecondaryWallet(otherUsername)).to.be.reverted;
     await contract.connect(wallet).removePlayerSecondaryWallet(username);
     await contract.connect(wallet).setPlayerPrimaryWallet(otherUsername, signature);
+
+    expect(await contract.getPlayerPrimaryWallet(otherUsername)).to.equal(wallet.address);
   });
 
   it('Should set player state data ipfs hash specific to the message sender address', async () => {
@@ -176,9 +178,9 @@ describe('NFT Worlds Server Router', () => {
       setArgs: [ username, playerSignature ],
     });
 
-    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
     expect(await contract.getPlayerPrimaryWallet(username)).to.equal(signer.address);
     expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
+    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
   });
 
   it('Should set player secondary wallet with gasless fee', async () => {
@@ -198,9 +200,9 @@ describe('NFT Worlds Server Router', () => {
       setArgs: [ username ],
     });
 
-    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
     expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(signer.address);
     expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
+    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
   });
 
   it('Should set multiple player secondary wallets and return correct wallets after a removal with gasless fees', async () => {
