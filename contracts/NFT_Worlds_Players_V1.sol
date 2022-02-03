@@ -183,10 +183,12 @@ contract NFT_Worlds_Players_V1 is Ownable, ERC2771Context, ReentrancyGuard {
    */
 
   function setConvenienceGateway(string calldata _convenienceGateway) external onlyOwner {
+    require(bytes(_convenienceGateway).length > 0, "No gateway");
     convenienceGateway = _convenienceGateway;
   }
 
   function setPrimarySigner(address _primarySigner) external onlyOwner {
+    require(_primarySigner != address(0), "Zero address");
     primarySigner = _primarySigner;
   }
 

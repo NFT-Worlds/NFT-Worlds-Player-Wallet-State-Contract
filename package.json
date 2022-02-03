@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx hardhat test"
+    "test": "npx hardhat test",
+    "verify-polygon-contract": "npx hardhat verify --network polygon 0xb12099BF1C9b23B5dCAfdEcC6181AFcd1b2a6754 \"0x7fE3AEDfC76D7C6DD84b617081A9346DE81236DC\" \"https://routing.nftworlds.com/ipfs/\""
   },
   "repository": {
     "type": "git",

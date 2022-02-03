@@ -22,11 +22,11 @@ module.exports = {
   defaultNetwork: 'hardhat',
   networks: {
     hardhat: {},
-    mainnet: {
-      url: process.env.ETHEREUM_MAINNET_URL,
+    polygon: {
+      url: process.env.POLYGON_MAINNET_URL,
     },
-    goerli: {
-      url: process.env.ETHEREUM_GOERLI_URL,
+    polygonMumbai: {
+      url: process.env.POLYGON_MUMBAI_URL,
     },
   },
   gasReporter: {

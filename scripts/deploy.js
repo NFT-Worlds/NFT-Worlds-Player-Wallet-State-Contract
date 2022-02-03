@@ -5,7 +5,7 @@ const { ethers } = require('hardhat');
 const IS_PRODUCTION = true;
 
 const FORWARDER_ADDRESS = '0x7fE3AEDfC76D7C6DD84b617081A9346DE81236DC';
-const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
+const IPFS_GATEWAY = 'https://routing.nftworlds.com/ipfs/';
 
 async function main() {
   const {
