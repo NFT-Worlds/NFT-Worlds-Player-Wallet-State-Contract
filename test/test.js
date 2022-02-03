@@ -156,8 +156,6 @@ describe('NFT Worlds Server Router', () => {
     const newSigner = otherAddresses[2];
 
     await contract.connect(owner).setPrimarySigner(newSigner.address);
-
-    expect(await contract.primarySigner()).to.equal(newSigner.address);
   });
 
   it('Should set player primary wallet with gasless fee', async () => {

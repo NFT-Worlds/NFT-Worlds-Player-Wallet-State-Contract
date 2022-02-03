@@ -40,7 +40,7 @@ module.exports = {
     pretty: false,
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: process.env.POLYGONSCAN_API_KEY,
   },
   mocha: {
     timeout: 60 * 60 * 1000,

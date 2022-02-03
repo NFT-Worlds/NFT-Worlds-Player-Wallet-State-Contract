@@ -33,7 +33,7 @@ contract NFT_Worlds_Players_V1 is Ownable, ERC2771Context, ReentrancyGuard {
   mapping(string => mapping(address => string)) private playerStateData;
 
   string public convenienceGateway;
-  address public primarySigner;
+  address private primarySigner;
 
   constructor(address _forwarder, string memory _convenienceGateway) ERC2771Context(_forwarder) {
     feeForwarder = IForwarder(_forwarder);
