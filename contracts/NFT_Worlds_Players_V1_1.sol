@@ -21,13 +21,13 @@ interface IForwarder {
   function execute(ForwardRequest calldata req, bytes calldata signature) external payable returns (bool, bytes memory);
 }
 
-contract NFT_Worlds_Players_V1 is Ownable, ERC2771Context, ReentrancyGuard {
+contract NFT_Worlds_Players_V1_1 is Ownable, ERC2771Context, ReentrancyGuard {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 
   IForwarder immutable feeForwarder;
 
-  mapping(address => string) public assignedWalletPlayer;
+  mapping(address => string) public assignedWalletUUID;
   mapping(string => address) private playerPrimaryWallet;
   mapping(string => EnumerableSet.AddressSet) private playerSecondaryWallets;
   mapping(string => mapping(address => string)) private playerStateData;
@@ -45,28 +45,28 @@ contract NFT_Worlds_Players_V1 is Ownable, ERC2771Context, ReentrancyGuard {
    * Player Reads
    */
 
-  function getPlayerPrimaryWallet(string calldata _username) external view returns (address) {
-    string memory lcUsername = _stringToLower(_username);
+  function getPlayerPrimaryWallet(string calldata _playerUUID) external view returns (address) {
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
 
-    return playerPrimaryWallet[lcUsername];
+    return playerPrimaryWallet[lcPlayerUUID];
   }
 
-  function getPlayerSecondaryWallets(string calldata _username) external view returns (address[] memory) {
-    string memory lcUsername = _stringToLower(_username);
+  function getPlayerSecondaryWallets(string calldata _playerUUID) external view returns (address[] memory) {
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
 
-    uint totalPlayerSecondaryWallets = playerSecondaryWallets[lcUsername].length();
+    uint totalPlayerSecondaryWallets = playerSecondaryWallets[lcPlayerUUID].length();
     address[] memory wallets = new address[](totalPlayerSecondaryWallets);
 
     for (uint i = 0; i < totalPlayerSecondaryWallets; i++) {
-      wallets[i] = playerSecondaryWallets[lcUsername].at(i);
+      wallets[i] = playerSecondaryWallets[lcPlayerUUID].at(i);
     }
 
     return wallets;
   }
 
-  function getPlayerStateData(string calldata _username, address _setterAddress, bool includeGateway) external view returns(string memory) {
-    string memory lcUsername = _stringToLower(_username);
-    string memory ipfsHash = playerStateData[lcUsername][_setterAddress];
+  function getPlayerStateData(string calldata _playerUUID, address _setterAddress, bool includeGateway) external view returns(string memory) {
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
+    string memory ipfsHash = playerStateData[lcPlayerUUID][_setterAddress];
 
     require(bytes(ipfsHash).length > 0, "No player state data set");
 
@@ -81,50 +81,50 @@ contract NFT_Worlds_Players_V1 is Ownable, ERC2771Context, ReentrancyGuard {
    * Player Writes
    */
 
-  function setPlayerPrimaryWallet(string calldata _username, bytes calldata _signature) public {
-    string memory lcUsername = _stringToLower(_username);
+  function setPlayerPrimaryWallet(string calldata _playerUUID, bytes calldata _signature) public {
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
 
     require(_verifyPrimarySignerSignature(
-      keccak256(abi.encode(_msgSender(), lcUsername)),
+      keccak256(abi.encode(_msgSender(), lcPlayerUUID)),
       _signature
     ), "Invalid Signature");
 
-    require(bytes(assignedWalletPlayer[_msgSender()]).length == 0, "Wallet assigned");
+    require(bytes(assignedWalletUUID[_msgSender()]).length == 0, "Wallet assigned");
 
-    playerPrimaryWallet[lcUsername] = _msgSender();
-    assignedWalletPlayer[_msgSender()] = lcUsername;
+    playerPrimaryWallet[lcPlayerUUID] = _msgSender();
+    assignedWalletUUID[_msgSender()] = lcPlayerUUID;
   }
 
-  function setPlayerSecondaryWallet(string calldata _username) public {
-    require(bytes(assignedWalletPlayer[_msgSender()]).length == 0, "Wallet assigned");
+  function setPlayerSecondaryWallet(string calldata _playerUUID) public {
+    require(bytes(assignedWalletUUID[_msgSender()]).length == 0, "Wallet assigned");
 
-    string memory lcUsername = _stringToLower(_username);
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
 
-    playerSecondaryWallets[lcUsername].add(_msgSender());
-    assignedWalletPlayer[_msgSender()] = lcUsername;
+    playerSecondaryWallets[lcPlayerUUID].add(_msgSender());
+    assignedWalletUUID[_msgSender()] = lcPlayerUUID;
   }
 
-  function setPlayerStateData(string calldata _username, string calldata _ipfsHash) public {
+  function setPlayerStateData(string calldata _playerUUID, string calldata _ipfsHash) public {
     require(bytes(_ipfsHash).length == 46, "Invalid IPFS hash");
 
-    string memory lcUsername = _stringToLower(_username);
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
 
-    playerStateData[lcUsername][_msgSender()] = _ipfsHash;
+    playerStateData[lcPlayerUUID][_msgSender()] = _ipfsHash;
   }
 
-  function removePlayerSecondaryWallet(string calldata _username) public {
-    require(bytes(assignedWalletPlayer[_msgSender()]).length > 0, "Wallet not assigned");
+  function removePlayerSecondaryWallet(string calldata _playerUUID) public {
+    require(bytes(assignedWalletUUID[_msgSender()]).length > 0, "Wallet not assigned");
 
-    string memory lcUsername = _stringToLower(_username);
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
 
-    playerSecondaryWallets[lcUsername].remove(_msgSender());
-    assignedWalletPlayer[_msgSender()] = "";
+    playerSecondaryWallets[lcPlayerUUID].remove(_msgSender());
+    assignedWalletUUID[_msgSender()] = "";
   }
 
-  function removePlayerStateData(string calldata _username) public {
-    string memory lcUsername = _stringToLower(_username);
+  function removePlayerStateData(string calldata _playerUUID) public {
+    string memory lcPlayerUUID = _stringToLower(_playerUUID);
 
-    playerStateData[lcUsername][_msgSender()] = "";
+    playerStateData[lcPlayerUUID][_msgSender()] = "";
   }
 
   /**
@@ -132,49 +132,49 @@ contract NFT_Worlds_Players_V1 is Ownable, ERC2771Context, ReentrancyGuard {
    */
 
   function setPlayerPrimaryWalletGasless(
-    string calldata _username,
+    string calldata _playerUUID,
     bytes calldata _signature,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
   ) external nonReentrant {
-    setPlayerPrimaryWallet(_username, _signature);
+    setPlayerPrimaryWallet(_playerUUID, _signature);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
   function setPlayerSecondaryWalletGasless(
-    string calldata _username,
+    string calldata _playerUUID,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
   ) external nonReentrant {
-    setPlayerSecondaryWallet(_username);
+    setPlayerSecondaryWallet(_playerUUID);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
   function setPlayerStateDataGasless(
-    string calldata _username,
+    string calldata _playerUUID,
     string calldata _ipfsHash,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
   ) external nonReentrant {
-    setPlayerStateData(_username, _ipfsHash);
+    setPlayerStateData(_playerUUID, _ipfsHash);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
   function removePlayerSecondaryWalletGasless(
-    string calldata _username,
+    string calldata _playerUUID,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
   ) external nonReentrant {
-    removePlayerSecondaryWallet(_username);
+    removePlayerSecondaryWallet(_playerUUID);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
   function removePlayerStateDataGasless(
-    string calldata _username,
+    string calldata _playerUUID,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
   ) external nonReentrant {
-    removePlayerStateData(_username);
+    removePlayerStateData(_playerUUID);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 
