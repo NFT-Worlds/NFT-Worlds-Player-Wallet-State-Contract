@@ -1,5 +1,6 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
+const uuid = require('uuid');
 const { BigNumber } = ethers;
 
 const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
@@ -115,19 +116,13 @@ describe('NFT Worlds Server Router', () => {
   it('Should set player state data ipfs hashes for multiple players specific to the message sender address and batch retrieves them', async () => {
     await contract.deployed();
 
-    const uuids = [
-      '0bf9cf1f-2b7c-46ee-b543-fb7427ab0608',
-      '79cc008b-1f85-4cea-ad47-8196a464910d',
-      '880cd0a9-ae2e-438f-aeb7-1aeaf8ed98aa',
-      'dda4891e-9fe6-4ae8-a6b6-796e72290e5f',
-    ];
+    const uuids = [];
+    const ipfsHashes = [];
 
-    const ipfsHashes = [
-      generateRandomIPFSHash(),
-      generateRandomIPFSHash(),
-      generateRandomIPFSHash(),
-      generateRandomIPFSHash(),
-    ];
+    for (let i = 0; i < 100; i++) {
+      uuids.push(uuid.v4());
+      ipfsHashes.push(generateRandomIPFSHash());
+    }
 
     expect(await contract.connect(owner).setPlayerStateDataBatch(uuids, ipfsHashes));
 
@@ -226,6 +221,38 @@ describe('NFT Worlds Server Router', () => {
 
     expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(signer.address);
     expect(await contract.assignedWalletUUID(signer.address)).to.equal(username);
+    expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
+  });
+
+  it('Should set player state data batched with gasless fee', async () => {
+    await contract.deployed();
+
+    const signer = otherAddresses[0];
+    const sender = otherAddresses[1];
+    const fee = getTokenDecimalAmount(2);
+
+    const uuids = [];
+    const ipfsHashes = [];
+
+    for (let i = 0; i < 100; i++) {
+      uuids.push(uuid.v4());
+      ipfsHashes.push(generateRandomIPFSHash());
+    }
+
+    await sendForwardedRequestWithFee({
+      signer,
+      sender,
+      functionName: 'setPlayerStateDataBatchGasless',
+      fee,
+      setArgs: [ uuids, ipfsHashes ],
+    });
+
+    const playerIPFSHashes = await contract.getPlayerStateDataBatch(uuids, signer.address, true);
+
+    playerIPFSHashes.forEach((ipfsHash, index) => {
+      expect(ipfsHash).to.equal(playerIPFSHashes[index]);
+    });
+
     expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
   });
 
@@ -374,7 +401,7 @@ describe('NFT Worlds Server Router', () => {
       from: signer.address,
       to: contract.address,
       value: getTokenDecimalAmount(0),
-      gas: BigNumber.from(250000), // if we get a gas estimate, the nonces will mismatch..
+      gas: BigNumber.from(25000000), // if we get a gas estimate, the nonces will mismatch.. this is a way high limit for batch testing, should be case by case.
       nonce: forwarderNonce,
       data: setCallData,
     };
