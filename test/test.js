@@ -15,14 +15,14 @@ describe('NFT Worlds Server Router', () => {
     const [ _owner, ..._otherAddresses ] = await ethers.getSigners();
     const WrldTokenFactory = await ethers.getContractFactory('WRLD_Token_Mock');
     const WRLDForwarderFactory = await ethers.getContractFactory('WRLD_Forwarder_Polygon');
-    const NFTWorldsPlayersV1Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1');
+    const NFTWorldsPlayersV1_2Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1_2');
 
     owner = _owner;
     otherAddresses = _otherAddresses;
 
     forwarderContract = await WRLDForwarderFactory.deploy();
     tokenContract = await WrldTokenFactory.deploy(forwarderContract.address);
-    contract = await NFTWorldsPlayersV1Factory.deploy(forwarderContract.address, IPFS_GATEWAY);
+    contract = await NFTWorldsPlayersV1_2Factory.deploy(forwarderContract.address, IPFS_GATEWAY);
   });
 
   it('Should deploy', async () => {
@@ -33,15 +33,15 @@ describe('NFT Worlds Server Router', () => {
     await contract.deployed();
 
     const player = otherAddresses[0];
-    const username = '_ABCDEFGHIJKLmNOPQRSTUVWXYZ_.';
-    const lcUsername = username.toLowerCase();
-    const signature = generatePlayerWalletSignature(player.address, lcUsername);
+    const uuid = '1f523CCe-0bd2-482c-bd93-6fbd54b275c6';
+    const lcUUID = uuid.toLowerCase();
+    const signature = generatePlayerWalletSignature(player.address, lcUUID);
 
-    await contract.connect(player).setPlayerPrimaryWallet(username, signature);
+    await contract.connect(player).setPlayerPrimaryWallet(uuid, signature);
 
     // Contract lowercases all usernames to maintain case insensitive usernames lookups.
-    expect(await contract.getPlayerPrimaryWallet(lcUsername)).to.equal(player.address);
-    expect(await contract.assignedWalletPlayer(player.address)).to.equal(lcUsername);
+    expect(await contract.getPlayerPrimaryWallet(lcUUID)).to.equal(player.address);
+    expect(await contract.assignedWalletUUID(player.address)).to.equal(lcUUID);
   });
 
   it('Should set player secondary wallet', async () => {
@@ -54,7 +54,7 @@ describe('NFT Worlds Server Router', () => {
     await contract.connect(player).setPlayerSecondaryWallet(username);
 
     expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(player.address);
-    expect(await contract.assignedWalletPlayer(player.address)).to.equal(lcUsername);
+    expect(await contract.assignedWalletUUID(player.address)).to.equal(lcUsername);
   });
 
   it('Should set multiple player secondary wallets and return correct wallets after a removal', async () => {
@@ -110,6 +110,32 @@ describe('NFT Worlds Server Router', () => {
     await contract.connect(owner).setPlayerStateData(username, ipfsHash);
 
     expect(await contract.getPlayerStateData(lcUsername, owner.address, false)).to.equal(`ipfs://${ipfsHash}`);
+  });
+
+  it('Should set player state data ipfs hashes for multiple players specific to the message sender address and batch retrieves them', async () => {
+    await contract.deployed();
+
+    const uuids = [
+      '0bf9cf1f-2b7c-46ee-b543-fb7427ab0608',
+      '79cc008b-1f85-4cea-ad47-8196a464910d',
+      '880cd0a9-ae2e-438f-aeb7-1aeaf8ed98aa',
+      'dda4891e-9fe6-4ae8-a6b6-796e72290e5f',
+    ];
+
+    const ipfsHashes = [
+      generateRandomIPFSHash(),
+      generateRandomIPFSHash(),
+      generateRandomIPFSHash(),
+      generateRandomIPFSHash(),
+    ];
+
+    expect(await contract.connect(owner).setPlayerStateDataBatch(uuids, ipfsHashes));
+
+    const playerIPFSHashes = await contract.getPlayerStateDataBatch(uuids, owner.address, true);
+
+    playerIPFSHashes.forEach((ipfsHash, index) => {
+      expect(ipfsHash).to.equal(playerIPFSHashes[index]);
+    });
   });
 
   it('Should remove player secondary wallet', async () => {
@@ -177,7 +203,7 @@ describe('NFT Worlds Server Router', () => {
     });
 
     expect(await contract.getPlayerPrimaryWallet(username)).to.equal(signer.address);
-    expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
+    expect(await contract.assignedWalletUUID(signer.address)).to.equal(username);
     expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
   });
 
@@ -199,7 +225,7 @@ describe('NFT Worlds Server Router', () => {
     });
 
     expect((await contract.getPlayerSecondaryWallets(username))[0]).to.equal(signer.address);
-    expect(await contract.assignedWalletPlayer(signer.address)).to.equal(username);
+    expect(await contract.assignedWalletUUID(signer.address)).to.equal(username);
     expect(await tokenContract.balanceOf(sender.address) * 1).to.equal(fee * 1);
   });
 
