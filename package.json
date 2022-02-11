@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "npx hardhat test",
-    "verify-polygon-contract": "npx hardhat verify --network polygon 0xbBC146B7a588379f159954227Bb5C82D9169d8C5 \"0x7fE3AEDfC76D7C6DD84b617081A9346DE81236DC\" \"https://routing.nftworlds.com/ipfs/\""
+    "verify-polygon-contract": "npx hardhat verify --network polygon 0xD92BA3573B9531610c0e86305890E7a9F61fEFB9 \"0x7fE3AEDfC76D7C6DD84b617081A9346DE81236DC\" \"https://routing.nftworlds.com/ipfs/\""
   },
   "repository": {
     "type": "git",
