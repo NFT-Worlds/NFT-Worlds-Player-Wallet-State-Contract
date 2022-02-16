@@ -21,7 +21,7 @@ interface IForwarder {
   function execute(ForwardRequest calldata req, bytes calldata signature) external payable returns (bool, bytes memory);
 }
 
-contract NFT_Worlds_Players_V1_3 is Ownable, ERC2771Context, ReentrancyGuard {
+contract NFT_Worlds_Players_V1_4 is Ownable, ERC2771Context, ReentrancyGuard {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 
@@ -113,10 +113,15 @@ contract NFT_Worlds_Players_V1_3 is Ownable, ERC2771Context, ReentrancyGuard {
     emit PlayerPrimaryWalletSet(lcPlayerUUID, lcPlayerUUID, _msgSender());
   }
 
-  function setPlayerSecondaryWallet(string calldata _playerUUID) public {
-    require(bytes(assignedWalletUUID[_msgSender()]).length == 0, "Wallet assigned");
-
+  function setPlayerSecondaryWallet(string calldata _playerUUID, bytes calldata _signature) public {
     string memory lcPlayerUUID = _stringToLower(_playerUUID);
+
+    require(_verifyPrimarySignerSignature(
+      keccak256(abi.encode(_msgSender(), lcPlayerUUID)),
+      _signature
+    ), "Invalid Signature");
+
+    require(bytes(assignedWalletUUID[_msgSender()]).length == 0, "Wallet assigned");
 
     playerSecondaryWallets[lcPlayerUUID].add(_msgSender());
     assignedWalletUUID[_msgSender()] = lcPlayerUUID;
@@ -180,10 +185,11 @@ contract NFT_Worlds_Players_V1_3 is Ownable, ERC2771Context, ReentrancyGuard {
 
   function setPlayerSecondaryWalletGasless(
     string calldata _playerUUID,
+    bytes calldata _signature,
     ForwardRequest calldata _feeForwardRequest,
     bytes calldata _feeSignature
   ) external nonReentrant {
-    setPlayerSecondaryWallet(_playerUUID);
+    setPlayerSecondaryWallet(_playerUUID, _signature);
     feeForwarder.execute(_feeForwardRequest, _feeSignature);
   }
 

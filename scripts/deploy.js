@@ -27,10 +27,10 @@ async function main() {
     : new Wallet(`0x${POLYGON_MUMBAI_ACCOUNT}`, polygonProvider);
 
   // increment so contract on eth & poly for token have matching addresses.
-  const NFTWorldsPlayersV1_3Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1_3', polygonWallet);
+  const NFTWorldsPlayersV1_4Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1_4', polygonWallet);
 
   // Deploy Polygon
-  const polygonPlayersContract = await NFTWorldsPlayersV1_3Factory.deploy(
+  const polygonPlayersContract = await NFTWorldsPlayersV1_4Factory.deploy(
     FORWARDER_ADDRESS,
     IPFS_GATEWAY,
   );
