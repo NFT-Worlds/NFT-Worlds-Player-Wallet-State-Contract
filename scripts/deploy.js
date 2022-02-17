@@ -28,11 +28,12 @@ async function main() {
 
   // increment so contract on eth & poly for token have matching addresses.
   const NFTWorldsPlayersV1_4Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1_4', polygonWallet);
-
+console.log(polygonWallet.address);
   // Deploy Polygon
   const polygonPlayersContract = await NFTWorldsPlayersV1_4Factory.deploy(
     FORWARDER_ADDRESS,
     IPFS_GATEWAY,
+    { gasPrice: 100000000000, nonce: 0 },
   );
 
   console.log('Polygon WRLD Deploy TX Hash', polygonPlayersContract.deployTransaction.hash);
