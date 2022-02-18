@@ -33,7 +33,7 @@ console.log(polygonWallet.address);
   const polygonPlayersContract = await NFTWorldsPlayersV1_5Factory.deploy(
     FORWARDER_ADDRESS,
     IPFS_GATEWAY,
-    { gasPrice: 100000000000, nonce: 0 },
+    { gasPrice: 100000000000 },
   );
 
   console.log('Polygon WRLD Deploy TX Hash', polygonPlayersContract.deployTransaction.hash);
