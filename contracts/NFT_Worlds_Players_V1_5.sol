@@ -21,7 +21,7 @@ interface IForwarder {
   function execute(ForwardRequest calldata req, bytes calldata signature) external payable returns (bool, bytes memory);
 }
 
-contract NFT_Worlds_Players_V1_4 is Ownable, ERC2771Context, ReentrancyGuard {
+contract NFT_Worlds_Players_V1_5 is Ownable, ERC2771Context, ReentrancyGuard {
   using EnumerableSet for EnumerableSet.AddressSet;
   using ECDSA for bytes32;
 
@@ -106,6 +106,8 @@ contract NFT_Worlds_Players_V1_4 is Ownable, ERC2771Context, ReentrancyGuard {
     ), "Invalid Signature");
 
     require(bytes(assignedWalletUUID[_msgSender()]).length == 0, "Wallet assigned");
+
+    assignedWalletUUID[playerPrimaryWallet[lcPlayerUUID]] = "";
 
     playerPrimaryWallet[lcPlayerUUID] = _msgSender();
     assignedWalletUUID[_msgSender()] = lcPlayerUUID;

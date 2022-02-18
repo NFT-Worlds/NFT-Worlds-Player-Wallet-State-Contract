@@ -16,14 +16,14 @@ describe('NFT Worlds Server Router', () => {
     const [ _owner, ..._otherAddresses ] = await ethers.getSigners();
     const WrldTokenFactory = await ethers.getContractFactory('WRLD_Token_Mock');
     const WRLDForwarderFactory = await ethers.getContractFactory('WRLD_Forwarder_Polygon');
-    const NFTWorldsPlayersV1_4Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1_4');
+    const NFTWorldsPlayersV1_5Factory = await ethers.getContractFactory('NFT_Worlds_Players_V1_5');
 
     owner = _owner;
     otherAddresses = _otherAddresses;
 
     forwarderContract = await WRLDForwarderFactory.deploy();
     tokenContract = await WrldTokenFactory.deploy(forwarderContract.address);
-    contract = await NFTWorldsPlayersV1_4Factory.deploy(forwarderContract.address, IPFS_GATEWAY);
+    contract = await NFTWorldsPlayersV1_5Factory.deploy(forwarderContract.address, IPFS_GATEWAY);
   });
 
   it('Should deploy', async () => {
@@ -43,6 +43,23 @@ describe('NFT Worlds Server Router', () => {
     // Contract lowercases all usernames to maintain case insensitive usernames lookups.
     expect(await contract.getPlayerPrimaryWallet(lcUUID)).to.equal(player.address);
     expect(await contract.assignedWalletUUID(player.address)).to.equal(lcUUID);
+  });
+
+  it('Should set player primary wallet and unassign it when a new primary is set', async () => {
+    await contract.deployed();
+
+    const wallet0 = otherAddresses[0];
+    const wallet1 = otherAddresses[1];
+    const uuid0 = '1f523CCe-0bd2-482c-bd93-6fbd54b275c6'.toLowerCase();
+    const uuid1 = '1f523CCe-0bd2-482c-bd93-6fbd54b27444'.toLowerCase();
+    const signature0 = await generatePlayerWalletSignature(wallet0.address, uuid0);
+    const signature2 = await generatePlayerWalletSignature(wallet1.address, uuid0);
+    const signature1 = await generatePlayerWalletSignature(wallet0.address, uuid1);
+
+
+    await contract.connect(wallet0).setPlayerPrimaryWallet(uuid0, signature0);
+    await contract.connect(wallet1).setPlayerPrimaryWallet(uuid0, signature2);
+    await contract.connect(wallet0).setPlayerPrimaryWallet(uuid1, signature1);
   });
 
   it('Should set player secondary wallet', async () => {
